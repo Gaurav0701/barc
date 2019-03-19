@@ -9,13 +9,15 @@ from numpy import pi
 v_meas      = 0.0
 t0          = time.time()
 r_tire      = 0.05 # radius of the tire
-servo_pwm   = 1580.0
+servo_pwm   = 1530.0
 motor_pwm   = 1500.0
-<<<<<<< HEAD
 motor_pwm_offset = 1580.0
+ang_km1 = 0
+ang_km2 = 0
+arr_vel = [0 , 0, 0, 0, 0];
 
 # reference speed 
-v_ref = 0.5 # reference speed is 0.5 m/s
+v_ref = .5 # reference speed is 0.5 m/s
 
 # encoder measurement update
 def enc_callback(data):
@@ -45,9 +47,7 @@ def enc_callback(data):
     ang_km1 = ang_mean
     ang_km2 = ang_km1
     t0      = time.time()
-=======
 motor_pwm_offset = 1500.0
->>>>>>> 913163a1acddc1d846eb269c04ae3dc60ecbc2bd
 
 # reference speed 
 v_ref = 0.5 # give reference speed is 0.5 m/s
@@ -77,6 +77,7 @@ class PID():
 
         acc = self.P_effect + self.I_effect
 
+
         return acc
 
 # =====================================end of the controller====================================#
@@ -89,38 +90,30 @@ def controller():
     # Initialize node:
     rospy.init_node('simulationGain', anonymous=True)
 
-<<<<<<< HEAD
     # topic subscriptions / publications
     rospy.Subscriber('encoder', Encoder, enc_callback)
-=======
     # TODO: Add your necessary topic subscriptions / publications, depending on your preferred method of velocity estimation
->>>>>>> 913163a1acddc1d846eb269c04ae3dc60ecbc2bd
     ecu_pub   = rospy.Publisher('ecu_pwm', ECU, queue_size = 10)
+    error_pub = rospy.Publisher('error', ECU, queue_size = 10)
 
     # Set node rate
     loop_rate   = 50
     rate        = rospy.Rate(loop_rate)
-<<<<<<< HEAD
-
-    # Initialize the PID controller
-    PID_control = PID(kp=20, ki=5, kd=0.0)
-
-=======
-    
+  
     # TODO: Initialize your PID controller here, with your chosen PI gains
-    PID_control = PID(kp = 1, ki = 1, kd = 0)
+    PID_control = PID(kp = 12, ki = 15, kd = 0)
     
->>>>>>> 913163a1acddc1d846eb269c04ae3dc60ecbc2bd
     while not rospy.is_shutdown():
+        speed_error = v_ref - v_meas
+        error_pub.publish(ECU(speed_error, 0))
         # calculate acceleration from PID controller.
         motor_pwm = PID_control.acc_calculate(v_ref, v_meas) + motor_pwm_offset
-<<<<<<< HEAD
+        if motor_pwm > 1750:
+            motor_pwm = 1750
 
         # publish information
-=======
  
         # publish control command
->>>>>>> 913163a1acddc1d846eb269c04ae3dc60ecbc2bd
         ecu_pub.publish( ECU(motor_pwm, servo_pwm) )
 
         # wait
