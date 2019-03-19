@@ -14,10 +14,11 @@ motor_pwm   = 1500.0
 motor_pwm_offset = 1580.0
 ang_km1 = 0
 ang_km2 = 0
-arr_vel = [0 , 0, 0, 0, 0];
+arr_vel = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+arr_pwm = [0 ,0 ,0, 0, 0, 0, 0, 0, 0, 0];
 
 # reference speed 
-v_ref = .5 # reference speed is 0.5 m/s
+v_ref = 2 # reference speed is 0.5 m/s
 
 # encoder measurement update
 def enc_callback(data):
@@ -47,7 +48,7 @@ def enc_callback(data):
     ang_km1 = ang_mean
     ang_km2 = ang_km1
     t0      = time.time()
-motor_pwm_offset = 1500.0
+motor_pwm_offset = 1580.0
 
 # reference speed 
 v_ref = 0.5 # give reference speed is 0.5 m/s
@@ -77,6 +78,7 @@ class PID():
 
         acc = self.P_effect + self.I_effect
 
+    	rospy.logwarn("pwm = {}".format(acc))
 
         return acc
 
@@ -94,22 +96,27 @@ def controller():
     rospy.Subscriber('encoder', Encoder, enc_callback)
     # TODO: Add your necessary topic subscriptions / publications, depending on your preferred method of velocity estimation
     ecu_pub   = rospy.Publisher('ecu_pwm', ECU, queue_size = 10)
-    error_pub = rospy.Publisher('error', ECU, queue_size = 10)
+    velarr_pub = rospy.Publisher('velarr', ECU, queue_size = 10)
 
     # Set node rate
     loop_rate   = 50
     rate        = rospy.Rate(loop_rate)
   
     # TODO: Initialize your PID controller here, with your chosen PI gains
-    PID_control = PID(kp = 12, ki = 15, kd = 0)
+    PID_control = PID(kp = 5, ki = 1, kd = 0)
     
     while not rospy.is_shutdown():
-        speed_error = v_ref - v_meas
-        error_pub.publish(ECU(speed_error, 0))
         # calculate acceleration from PID controller.
+        arr_vel.append(v_meas)
+        arr_vel.pop(0)
+        #v_meas = sum(arr_vel)/len(arr_vel)
+        velarr_pub.publish( ECU(v_meas,0) )
         motor_pwm = PID_control.acc_calculate(v_ref, v_meas) + motor_pwm_offset
         if motor_pwm > 1750:
             motor_pwm = 1750
+        arr_pwm.append(motor_pwm)
+        arr_pwm.pop(0)
+        motor_pwm = sum(arr_pwm)/len(arr_pwm)
 
         # publish information
  
