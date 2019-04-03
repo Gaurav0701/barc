@@ -11,14 +11,15 @@ t0          = time.time()
 r_tire      = 0.05 # radius of the tire
 servo_pwm   = 1530.0
 motor_pwm   = 1500.0
-motor_pwm_offset = 1580.0
+motor_pwm_offset = 1560.0
 ang_km1 = 0
 ang_km2 = 0
-arr_vel = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-arr_pwm = [0 ,0 ,0, 0, 0, 0, 0, 0, 0, 0];
+arr_vel = [0, 0,];
+arr_pwm = [0, 0];
+#arr_theta = [0, 0, 0, 0];
 
 # reference speed 
-v_ref = 2 # reference speed is 0.5 m/s
+v_ref = 0.5 # reference speed is 0.5 m/s
 
 # encoder measurement update
 def enc_callback(data):
@@ -32,7 +33,10 @@ def enc_callback(data):
     n_BR = data.BR
 
     # compute the average encoder measurement
-    n_mean = (n_FL + n_FR)/2
+    n_mean = (n_BL + n_BR)/2
+    #arr_theta.append(n_mean)
+    #arr_theta.pop(0);
+    #n_mean = sum(arr_theta)/len(arr_theta)
 
     # transfer the encoder measurement to angular displacement
     ang_mean = n_mean*2*pi/8
@@ -42,13 +46,13 @@ def enc_callback(data):
     dt = tf - t0
     
     # compute speed with second-order, backwards-finite-difference estimate
-    v_meas    = r_tire*(ang_mean - 4*ang_km1 + 3*ang_km2)/(dt)
+    v_meas    = r_tire*(3*ang_mean - 4*ang_km1 + ang_km2)/(2*dt)
     rospy.logwarn("velocity = {}".format(v_meas))
     # update old data
-    ang_km1 = ang_mean
     ang_km2 = ang_km1
+    ang_km1 = ang_mean
     t0      = time.time()
-motor_pwm_offset = 1580.0
+    #motor_pwm_offset = 1500.0
 
 # reference speed 
 v_ref = 0.5 # give reference speed is 0.5 m/s
@@ -78,7 +82,7 @@ class PID():
 
         acc = self.P_effect + self.I_effect
 
-    	rospy.logwarn("pwm = {}".format(acc))
+    	#rospy.logwarn("pwm = {}".format(acc))
 
         return acc
 
@@ -101,19 +105,21 @@ def controller():
     # Set node rate
     loop_rate   = 50
     rate        = rospy.Rate(loop_rate)
-  
+    
     # TODO: Initialize your PID controller here, with your chosen PI gains
-    PID_control = PID(kp = 5, ki = 1, kd = 0)
+    PID_control = PID(kp = 20, ki = 5, kd = 0)
     
     while not rospy.is_shutdown():
+        #rospy.sleep(2)
         # calculate acceleration from PID controller.
         arr_vel.append(v_meas)
         arr_vel.pop(0)
-        #v_meas = sum(arr_vel)/len(arr_vel)
-        velarr_pub.publish( ECU(v_meas,0) )
+        v_meas = sum(arr_vel)/len(arr_vel)
+
         motor_pwm = PID_control.acc_calculate(v_ref, v_meas) + motor_pwm_offset
-        if motor_pwm > 1750:
-            motor_pwm = 1750
+        if motor_pwm > 1650:
+            motor_pwm = 1650
+
         arr_pwm.append(motor_pwm)
         arr_pwm.pop(0)
         motor_pwm = sum(arr_pwm)/len(arr_pwm)
@@ -122,6 +128,7 @@ def controller():
  
         # publish control command
         ecu_pub.publish( ECU(motor_pwm, servo_pwm) )
+        velarr_pub.publish( ECU(v_meas, motor_pwm) )
 
         # wait
         rate.sleep()
