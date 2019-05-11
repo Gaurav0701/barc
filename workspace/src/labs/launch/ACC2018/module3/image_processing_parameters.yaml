@@ -24,15 +24,15 @@ kernel_size:                 11
 lower_red: [90,0,0]
 upper_red: [255,140,50]
 
-lower_white: [255,255,255]
-upper_white: [255,255,255]
+lower_white: [80,80,80]
+upper_white: [256,256,256]
 
 boxsize: 10
 numStepsToLookAhead: 7
 converge_limit: 100
 
-bMatrix:                    [-152.381,319.5918,-209.0476,41.0882]
-f1Matrix:                   [44.3368,-16.9179,-4.7394,-0.005]
-f2Matrix:                   [-2.6786e+03,8.1735e+03,-8.8625e+03,3.8432e+03]
-xInertial_to_yPixel_Matrix: [916.6667,-2.3536e+03,2.1683e+03,-502.4286]
-yPixel_to_xInertial_Matrix: [1.3907e-07,-4.194e-05,0.0060,0.1542]
+bMatrix:                    [-95.2381, 235.5102, -196.2803, 54.7536]
+f1Matrix:                   [-27.1373, -9.5490, -18.5173, 0.2338]
+f2Matrix:                   [-3.6964e+03, 1.19154e+04, -1.3489e+04, 5.7785e+03]
+xInertial_to_yPixel_Matrix: [1.0833e+03, -2.9414e+03, 2.8129e+03, -761.1926]
+yPixel_to_xInertial_Matrix: [1.6228e-07, -3.9037e-05, 0.0051, 0.3174]

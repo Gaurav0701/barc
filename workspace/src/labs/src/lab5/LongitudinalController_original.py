@@ -9,35 +9,34 @@ from numpy import pi
 v_meas      = 0.0
 t0          = time.time()
 r_tire      = 0.05 # radius of the tire
-servo_pwm   = 1528.0 #edited - 1580
+servo_pwm   = 1530.0
 motor_pwm   = 1500.0
-motor_pwm_offset = 1580.0
-arr_vel = [0, 0];
+motor_pwm_offset = 1560.0
+ang_km1 = 0
+ang_km2 = 0
+arr_vel = [0, 0,];
+arr_pwm = [0, 0];
+#arr_theta = [0, 0, 0, 0];
 
 # reference speed 
 v_ref = 0.5 # reference speed is 0.5 m/s
-start = True
+
 # encoder measurement update
 def enc_callback(data):
     global t0, v_meas
     global n_FL, n_FR, n_BL, n_BR
     global ang_km1, ang_km2
-    global start
 
     n_FL = data.FL
     n_FR = data.FR
     n_BL = data.BL
     n_BR = data.BR
 
-    if start:
-        ang_km1 = 0
-        ang_km2 = 0
-        start = False
-        
-
     # compute the average encoder measurement
-    n_mean = (n_FL + n_BR)/2
-    rospy.logwarn("n_mean = {}".format(n_mean))
+    n_mean = (n_BL + n_BR)/2
+    #arr_theta.append(n_mean)
+    #arr_theta.pop(0);
+    #n_mean = sum(arr_theta)/len(arr_theta)
 
     # transfer the encoder measurement to angular displacement
     ang_mean = n_mean*2*pi/8
@@ -49,22 +48,18 @@ def enc_callback(data):
     # compute speed with second-order, backwards-finite-difference estimate
     v_meas    = r_tire*(3*ang_mean - 4*ang_km1 + ang_km2)/(2*dt)
     rospy.logwarn("velocity = {}".format(v_meas))
-    rospy.logwarn("ang_mean = {}".format(ang_mean))
-    rospy.logwarn("ang_km1 = {}".format(ang_km1))
-    rospy.logwarn("ang_km2 = {}".format(ang_km2))
     # update old data
     ang_km2 = ang_km1
     ang_km1 = ang_mean
     t0      = time.time()
-    #=======
-    motor_pwm_offset = 1580.0
+    #motor_pwm_offset = 1500.0
 
-    # reference speed 
-    v_ref = 0.5 # give reference speed is 0.5 m/s
+# reference speed 
+v_ref = 0.5 # give reference speed is 0.5 m/s
 
 # ===================================PID longitudinal controller================================#
 class PID():
-    def __init__(self, kp=1, ki=1, kd=0, integrator=0, derivator=0):
+    def __init__(self, kp=1, ki=1, kd=1, integrator=0, derivator=0):
         self.kp = kp
         self.ki = ki
         self.integrator = integrator
@@ -86,7 +81,9 @@ class PID():
         self.I_effect = self.ki*self.integrator
 
         acc = self.P_effect + self.I_effect
-        rospy.logwarn(motor_pwm)
+
+    	#rospy.logwarn("pwm = {}".format(acc))
+
         return acc
 
 # =====================================end of the controller====================================#
@@ -103,42 +100,41 @@ def controller():
     rospy.Subscriber('encoder', Encoder, enc_callback)
     # TODO: Add your necessary topic subscriptions / publications, depending on your preferred method of velocity estimation
     ecu_pub   = rospy.Publisher('ecu_pwm', ECU, queue_size = 10)
-    vel_pub   = rospy.Publisher('vel', ECU, queue_size = 10)
+    velarr_pub = rospy.Publisher('velarr', ECU, queue_size = 10)
 
     # Set node rate
     loop_rate   = 50
     rate        = rospy.Rate(loop_rate)
-
-    # Initialize the PID controller
-    PID_control = PID(kp=20, ki=5, kd=0.0) #originally 20 5 0
     
     # TODO: Initialize your PID controller here, with your chosen PI gains
-    PID_control = PID(kp = 20, ki = 5, kd = 0) #originally 1 1 0
+    PID_control = PID(kp = 20, ki = 5, kd = 0)
+    
     while not rospy.is_shutdown():
+        #rospy.sleep(2)
         # calculate acceleration from PID controller.
-
         arr_vel.append(v_meas)
         arr_vel.pop(0)
         v_meas = sum(arr_vel)/len(arr_vel)
 
         motor_pwm = PID_control.acc_calculate(v_ref, v_meas) + motor_pwm_offset
         if motor_pwm > 1650:
-	        motor_pwm = 1650
-        elif motor_pwm < 1300:
-	        motor_pwm = 1300
+            motor_pwm = 1650
+
+        arr_pwm.append(motor_pwm)
+        arr_pwm.pop(0)
+        motor_pwm = sum(arr_pwm)/len(arr_pwm)
+
         # publish information
  
         # publish control command
-        #rospy.logwarn(motor_pwm)
         ecu_pub.publish( ECU(motor_pwm, servo_pwm) )
-        vel_pub.publish( ECU(v_meas, 0) )
+        velarr_pub.publish( ECU(v_meas, motor_pwm) )
 
         # wait
         rate.sleep()
 
 if __name__ == '__main__':
     try:
-        rospy.sleep(2)
-        controller()
+       controller()
     except rospy.ROSInterruptException:
         pass

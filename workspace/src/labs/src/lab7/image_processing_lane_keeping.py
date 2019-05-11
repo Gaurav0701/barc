@@ -301,6 +301,8 @@ class image_processing_node():
         self.publish_states_pub.publish(True)
 
 #################################################################################
+	
+
     def find_lane_edges(self,img,x,y,width):
         """
         Finds the edge of the track by searching starting from the center of the image and towards the edge along that row of pixels. Also removes some noise with a custom filter
@@ -390,7 +392,13 @@ class image_processing_node():
 
         if ((self.count%10 == 1) and self.printme):
             print(self.reference_trajectory)
-        
+        vx = 0.3
+        ylocations = self.reference_trajectory.y
+        ymean = sum(ylocations)/len(ylocations)
+        K_P = 80
+        df = K_P*ymean*pi/180
+        self.uOpt_pub.publish(Input(vx,df))
+        print([vx,df])
         self.reference_trajectory_pub.publish(self.reference_trajectory)
 
     ######################################################################################
